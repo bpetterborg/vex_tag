@@ -6,8 +6,9 @@ using signature = vision::signature;
 using code = vision::code;
 brain Brain;
 
-// VEXcode device constructors
-//bumper frontBumper = bumper(triport::port &port)
+// devices
+bumper frontBumper = bumper(Brain.ThreeWirePort.A);
+bumper rearBumper = bumper(Brain.ThreeWirePort.F);
 
 motor leftMotorA = motor(PORT1, ratio18_1, false);
 motor leftMotorB = motor(PORT10, ratio18_1, false);
@@ -23,6 +24,8 @@ controller Controller1 = controller(primary);
 // some vars
 bool DrivetrainLNeedsToBeStopped_Controller1 = true;
 bool DrivetrainRNeedsToBeStopped_Controller1 = true;
+
+double tagMultiplier = 1;
 
 
 // exponential speed control left side
@@ -68,14 +71,35 @@ int getRightDriveSpeed (vex::directionType type, int percentage)
 }
 
 
-// function that adjusts speed based on what the buttons do
-int getTagMultiplier (int tagMultiplier)
+// functions that adjusts speed based on what the buttons do
+
+void getIncreaseTagMultiplier()
 {
+  tagMultiplier = tagMultiplier * 1.1;
   
-  return tagMultiplier;
+  // if tagMultiplier is less than 0 or greater than 1, make it not be
+  if (tagMultiplier > 1)
+  {
+    tagMultiplier = 1;
+  }
+  else if (tagMultiplier <= 0)
+  {
+    tagMultiplier = 0.1;
+  }
 }
 
-
+void getDecreaseTagMultiplier()
+{
+  tagMultiplier = tagMultiplier * 0.25;
+  if (tagMultiplier > 1)
+  {
+    tagMultiplier = 1;
+  } 
+  else if (tagMultiplier <= 0)
+  {
+    tagMultiplier = 0;
+  }
+}  
 
 int rc_auto_loop_function_Controller1() 
 {
@@ -84,9 +108,12 @@ int rc_auto_loop_function_Controller1()
     int deadband = 2;
 
     // still need to add speed multiplier
-    int leftMotorSpeed = getLeftDriveSpeed (vex::directionType::fwd, Controller1.Axis3.value());
-    int rightMotorSpeed = getRightDriveSpeed (vex::directionType::fwd, Controller1.Axis2.value());
+    int leftMotorSpeed = (getLeftDriveSpeed (vex::directionType::fwd, Controller1.Axis3.value()) * tagMultiplier);
+    int rightMotorSpeed = (getRightDriveSpeed (vex::directionType::fwd, Controller1.Axis2.value()) * tagMultiplier);
     
+    Brain.Screen.print(tagMultiplier);
+    Brain.Screen.clearScreen();
+
     // left side deadband checking
     if (abs(leftMotorSpeed) < deadband)
     {
@@ -107,6 +134,10 @@ int rc_auto_loop_function_Controller1()
       RightDriveSmart.setVelocity(rightMotorSpeed, percent);
     }
     
+    frontBumper.pressed(getIncreaseTagMultiplier);
+    rearBumper.pressed(getDecreaseTagMultiplier);
+
+
     // spin both motors
     RightDriveSmart.spin(forward);
     LeftDriveSmart.spin(forward);
